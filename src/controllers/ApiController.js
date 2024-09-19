@@ -4,8 +4,16 @@ const COINGECKO_BASE_URL = "https://api.coingecko.com/api/v3";
 
 class ApiController {
   constructor() {}
-
-  // TODO: get coin markets, only usd allowed, getting the first top 250 market cap coins
+  
+  /**
+   * Get a list of all coins with their respective market data,
+   * including the current price, market capitalization, and
+   * price change percentage over the past 24 hours.
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   * @returns {Object[]} - Array of objects containing data for each coin
+   * @throws {Error} - If the request to CoinGecko fails
+   */
   async getCoinMarkets(req, res) {
     try {
       const response = await axios.get(`${COINGECKO_BASE_URL}/coins/markets`, {
@@ -28,7 +36,13 @@ class ApiController {
     }
   }
 
-  // TODO: get the list of coins and their ids
+  /**
+   * Get a list of all supported coins on CoinGecko along with their IDs
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   * @returns {Object[]} - Array of objects containing { id, name } for each coin
+   * @throws {Error} - If the request to CoinGecko fails
+   */
   async getCoinsList(req, res) {
     try {
         const response = await axios.get(`${COINGECKO_BASE_URL}/coins/list`);
@@ -42,8 +56,13 @@ class ApiController {
         console.log(error);
     }
   }
-
-  // TODO: get the trending searches for crypto (CoinGecko only provides the top 15 popular user searches)
+  /**
+   * Get the trending coins on CoinGecko
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   * @returns {Object[]} - Array of objects containing { id, name, market_cap_rank, price, market_cap } for each trending coin
+   * @throws {Error} - If the request to CoinGecko fails
+   */
   async getTrending(req, res) {
     try {
         const response = await axios.get(`${COINGECKO_BASE_URL}/search/trending`);
@@ -62,10 +81,31 @@ class ApiController {
     }
   }
 
-  // TODO: get the charts data
-  // parameters: user input duration (ie. past 1 day, past 10 days...) and id (coin id) (app dev will display the corresponding coin name not the id)
+  /**
+   * Get the market data of a specific coin in the past given number of days
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   * @param {String} req.params.id - The id of the coin to get the data for
+   * @param {Number} req.query.daysBefore - The number of days to get the market data for
+   * @returns {Number[][]} - Array of arrays containing [time, price] for the given coin
+   * @throws {Error} - If the request to CoinGecko fails
+   */
   async getCoinChartsInfo(req, res) {
-    
+    const { id } = req.params;
+    const { daysBefore } = req.query;
+    try {
+      const response = await axios.get(`${COINGECKO_BASE_URL}/coins/${id}/market_chart`, {
+        params: {
+          vs_currency: 'usd',
+          days: daysBefore
+        }
+      });
+      const responseData = response.data.prices;
+      res.status(200).json(responseData);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+      console.log(error);
+    }
   }
 }
 
