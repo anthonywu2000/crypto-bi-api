@@ -12,3 +12,4 @@ data from the CoinGecko endpoints.
 ## TODOs: 
    - Unit tests on the API endpoints.
    - Creating endpoint middleware.
+   - Hosting service

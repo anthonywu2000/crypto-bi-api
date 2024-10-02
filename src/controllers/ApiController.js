@@ -87,7 +87,7 @@ class ApiController {
    * Get the trending coins on CoinGecko
    * @param {Object} req - Express request object
    * @param {Object} res - Express response object
-   * @returns {Object[]} - Array of objects containing { id, name, market_cap_rank, price, market_cap } for each trending coin
+   * @returns {Object[]} - Array of objects containing { id, name, market_cap_rank, market_cap } for each trending coin
    * @throws {Error} - If the request to CoinGecko fails
    */
   async getTrending(req, res) {
@@ -102,15 +102,18 @@ class ApiController {
         );
         responseData = response.data.coins.map((coin) => ({
           id: coin.item.id,
+          thumb: coin.item.small,
           name: coin.item.name,
+          symbol: coin.item.symbol,
           market_cap_rank: coin.item.market_cap_rank,
-          price: coin.item.data.price,
+          total_volume: coin.item.data.total_volume,
           market_cap: coin.item.data.market_cap,
+          sparkline: coin.item.data.sparkline
         }));
         responseData.sort((a, b) => a.market_cap_rank - b.market_cap_rank);
         await redisClient.setEx(
           "trending_coins",
-          84600,
+          7200,
           JSON.stringify(responseData)
         );
       }
