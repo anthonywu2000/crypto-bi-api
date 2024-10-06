@@ -10,6 +10,5 @@ Tech stacks used in this service includes the Node.js framework Express.js, Redi
 data from the CoinGecko endpoints.
 
 ## TODOs: 
-   - Unit tests on the API endpoints.
-   - Creating endpoint middleware.
+   - Unit tests with Jest on each endpoint.
    - Hosting service

@@ -4,7 +4,7 @@ const redisClient = require("../redisClient");
 const COINGECKO_BASE_URL = "https://api.coingecko.com/api/v3";
 
 class ApiController {
-  constructor() {}
+  constructor() { }
 
   /**
    * Get a list of all coins with their respective market data,
@@ -12,7 +12,7 @@ class ApiController {
    * price change percentage over the past 24 hours.
    * @param {Object} req - Express request object
    * @param {Object} res - Express response object
-   * @returns {Object[]} - Array of objects containing data for each coin
+   * @returns {Object[]} - Array of objects containing { id, name, image, current_price, market_cap, price_change_percentage_24h, market_cap_change_percentage_24h } for each coin
    * @throws {Error} - If the request to CoinGecko fails
    */
   async getCoinMarkets(req, res) {
@@ -22,25 +22,52 @@ class ApiController {
       if (cachedCoinMarkets) {
         responseData = JSON.parse(cachedCoinMarkets);
       } else {
-        const response = await axios.get(
-          `${COINGECKO_BASE_URL}/coins/markets`,
-          {
-            params: { vs_currency: "usd", per_page: 250, precision: 4 }, // just get the top 250 coins by market cap value
-          }
-        );
-        responseData = response.data.map((coinData) => ({
-          id: coinData.id,
-          name: coinData.name,
-          image: coinData.image,
-          current_price: coinData.current_price,
-          market_cap: coinData.market_cap,
-          price_change_percentage_24h: coinData.price_change_percentage_24h,
-          market_cap_change_percentage_24h:
-            coinData.market_cap_change_percentage_24h,
-        }));
+        const perPage = 250;
+        const maxPages = 3; // 3 pages to fetch concurrently at once
+
+        // helper functtion to fetch pages given the pageNumber
+        const fetchPage = async (pageNum) => {
+          const response = await axios.get(
+            `${COINGECKO_BASE_URL}/coins/markets`,
+            {
+              params: {
+                vs_currency: "usd",
+                per_page: perPage,
+                precision: 4,
+                page: pageNum,
+              },
+            }
+          );
+          const results = response.data.map((coinData) => ({
+            id: coinData.id,
+            name: coinData.name,
+            image: coinData.image,
+            current_price: coinData.current_price,
+            market_cap: coinData.market_cap,
+            price_change_percentage_24h: coinData.price_change_percentage_24h,
+            market_cap_change_percentage_24h:
+              coinData.market_cap_change_percentage_24h,
+          }));
+          return results;
+        };
+
+        // fetch 3 pages concurrently
+        const promises = [];
+        for (let i = 1; i <= maxPages; i++) {
+          promises.push(fetchPage(i));
+        }
+
+        // wait for all promises to resolve
+        const res = await Promise.all(promises);
+
+        // res.forEach((r) => {
+        //   responseData.push(...r); // push them to the main array
+        // });
+        responseData = res.flat(); // push contents of res to the main array
+
         await redisClient.setEx(
           "coin_markets_usd",
-          86400,
+          1800,
           JSON.stringify(responseData)
         );
       }
@@ -108,7 +135,7 @@ class ApiController {
           market_cap_rank: coin.item.market_cap_rank,
           total_volume: coin.item.data.total_volume,
           market_cap: coin.item.data.market_cap,
-          sparkline: coin.item.data.sparkline
+          sparkline: coin.item.data.sparkline,
         }));
         responseData.sort((a, b) => a.market_cap_rank - b.market_cap_rank);
         await redisClient.setEx(
@@ -161,18 +188,18 @@ class ApiController {
           const formattedDate = `${date.getFullYear()}-${(date.getMonth() + 1)
             .toString()
             .padStart(2, "0")}-${date
-            .getDate()
-            .toString()
-            .padStart(2, "0")} ${date
-            .getHours()
-            .toString()
-            .padStart(2, "0")}:${date
-            .getMinutes()
-            .toString()
-            .padStart(2, "0")}:${date
-            .getSeconds()
-            .toString()
-            .padStart(2, "0")}`;
+              .getDate()
+              .toString()
+              .padStart(2, "0")} ${date
+                .getHours()
+                .toString()
+                .padStart(2, "0")}:${date
+                  .getMinutes()
+                  .toString()
+                  .padStart(2, "0")}:${date
+                    .getSeconds()
+                    .toString()
+                    .padStart(2, "0")}`;
           return { x: formattedDate, y: price };
         });
         await redisClient.setEx(
